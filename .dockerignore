@@ -1,0 +1,91 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Test files
+test_*.py
+tests/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Training & data files
+*.log
+training.pid
+temperature_monitor.sh
+*.csv
+*.zip
+Dataset_*.csv
+training*.txt
+*.pid
+
+# Documentation
+*.md
+!README.md
+
+# Environment
+.env
+.env.*
+
+# Git
+.git/
+.gitignore
+
+# Large ML model files (too big for Cloud Run upload - exclude training models)
+*.pth
+indian_scam_model/
+indian_scam_model_v2/
+safe_scam_model/
+safe_training_output/
+phishing-email-dataset.zip
+scam_detector_model*.pth
+
+# Keep production model files (these are needed!)
+!production_scam_detector.pkl
+!rl_model.pkl
+
+# Databases (will be created on startup)
+*.db
+*.db-journal
+
+# Virtual environment
+venv/
+env/xample
+
+# Database (we'll create fresh in container)
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Logs
+*.log
+logs/
+
+# Other
+.dockerignore
+Dockerfile*
+docker-compose*.yml

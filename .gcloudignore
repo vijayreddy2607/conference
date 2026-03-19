@@ -1,0 +1,38 @@
+# Exclude git history (2.2GB)
+.git/
+.gitignore
+
+# Exclude virtual env (1.2GB)
+venv/
+env/
+
+# Exclude large ML models (3GB+)
+indian_scam_model/
+indian_scam_model_v2/
+safe_scam_model/
+safe_training_output/
+*.pth
+*.pkl
+!production_scam_detector.pkl
+
+# Exclude large datasets
+*.csv
+*.zip
+phishing-email-dataset.zip
+
+# Exclude local training logs
+*.log
+training*.txt
+
+# Exclude Python artifacts
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Exclude system files
+.DS_Store
+
+# Include necessary files
+!requirements.txt
+!Dockerfile
+!app/
