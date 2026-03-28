@@ -33,9 +33,7 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"
     
-    # GUVI Configuration
-    guvi_callback_url: str = "https://hackathon.guvi.in/api/updateHoneyPotFinalResult"
-    
+
    # Session Configuration
     session_timeout_seconds: int = 1800  # 30 minutes max per conversation
     max_conversation_turns: int = 25  # Stop after 25 turns (balanced)

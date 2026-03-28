@@ -1,150 +1,259 @@
-"""Regex patterns for intelligence extraction."""
+"""Regex patterns for intelligence extraction — comprehensive version."""
 import re
 
-# UPI ID Pattern: word@word (e.g., scammer@paytm, user@ybl)
-# AGGRESSIVE: Accept ALL @word patterns as UPI (don't filter gmail/yahoo)
-UPI_PATTERN = re.compile(r'\b([a-zA-Z0-9._-]+@[a-zA-Z0-9]+)\b')
+# UPI ID Pattern
+UPI_PATTERN = re.compile(r'([a-zA-Z0-9._-]+@[a-zA-Z0-9]+)', re.IGNORECASE)
 
-# Email Pattern: standard email format
-EMAIL_PATTERN = re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b')
+# Bank Account Pattern: 11-18 digits ONLY (exclude 10-digit phone numbers!)
+BANK_ACCOUNT_PATTERN = re.compile(r'\b(\d{11,18}|\d{4}[-\s]?\d{4}[-\s]?\d{4,10})\b')
 
-# Bank Account Pattern: 11-18 digits (Indian bank accounts)
-# FIXED: Exclude 10-digit phone numbers by requiring 11+ digits
-BANK_ACCOUNT_PATTERN = re.compile(r'\b\d{11,18}\b')
-
-# Enhanced Phone Number Pattern: Indian phone numbers with multiple formats
-# AGGRESSIVE: Accept any 10-digit number starting with 6-9
+# Phone Number Pattern: Indian phone numbers (ALL formats)
 PHONE_PATTERN = re.compile(
-    r'(?:\+91[-\s]?)?[6-9]\d{9}|'  # +91 or without, starting with 6-9
-    r'\b[6-9]\d{2}[-\s]?\d{3}[-\s]?\d{4}\b|'  # With dashes/spaces
-    r'\b[6-9]\d{9}\b'  # Simple 10 digits
+    r'(?:\(?\ +?91\)?[\s.\-]?|(?<!\d)0)?'
+    r'('
+    r'[6-9]\d{4}[\s.\-]\d{5}'
+    r'|(?<!\d)[6-9]\d{9}(?!\d)'
+    r')',
+    re.IGNORECASE
 )
 
-# Enhanced URL Pattern: http/https + short links + dot-separated domains
+# URL Pattern: http/https links
 URL_PATTERN = re.compile(
     r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-    r'|\b(?:bit\.ly|tinyurl\.com|goo\.gl|short\.link)/[a-zA-Z0-9]+'  # Short links
 )
 
-# Phishing domain keywords
-PHISHING_KEYWORDS = [
-    'bit.ly', 'tinyurl', 'short.link', 'goo.gl', 't.co',
-    'login', 'verify', 'secure', 'account', 'update', 'confirm'
-]
+# Obfuscated URL Pattern: "dot com", "[.]com", "hxxp://"
+OBFUSCATED_URL_PATTERN = re.compile(
+    r'(?:https?|hxxps?|h\*\*p)://[^\s]+|'
+    r'(?<![@\-a-zA-Z0-9])(?:[a-z0-9][a-z0-9-]{2,})\s*(?:dot|\[?\.\ ]?|\(\s*dot\s*\))\s*(?:com|in|org|net|co|info)(?:/[^\s]*)?|'
+    r'(?:[a-z0-9-]+\[\.\][a-z]+(?:/[^\s]*)?)',
+    re.IGNORECASE
+)
+
+# Employee ID Pattern
+EMPLOYEE_ID_PATTERN = re.compile(
+    r'(?:employee\s*id|emp\s*id|staff\s*id|customer\s*id|id)[\s:]*(?:is\s+)?([A-Z0-9]{4,10})',
+    re.IGNORECASE
+)
+
+# Name Pattern
+NAME_PATTERN = re.compile(
+    r'(?:naam|name|I am|main|mera naam)\s+(?:hai\s+)?([A-Z][a-z]+\s+[A-Z][a-z]+)|(?:Mr\.?|Mrs\.?|Ms\.?)\s+([A-Z][a-z]+\s+[A-Z][a-z]+)',
+    re.IGNORECASE
+)
+
+# Address Pattern
+ADDRESS_PATTERN = re.compile(
+    r'(\d+[/-]?\d*,?\s+[A-Z][A-Za-z\s]+(?:Road|Street|Sector|Plot|Floor|Building|Branch)[,\s]+[A-Za-z\s]+)',
+    re.IGNORECASE
+)
+
+# Hindi Address Pattern
+HINDI_ADDRESS_PATTERN = re.compile(
+    r'([\u0900-\u097F\w\s]+(?:सिटी|बाजार|रोड|मार्ग|नगर|इलाका|क्षेत्र)[,\s]*[\u0900-\u097F\w\s]*)',
+    re.IGNORECASE
+)
+
+# Email Pattern
+EMAIL_PATTERN = re.compile(r'[\w.-]+@[\w.-]+\.\w+')
+
+# Pincode Pattern
+PINCODE_PATTERN = re.compile(r'\b[1-9]\d{5}\b')
+
+# Written Number Pattern
+WRITTEN_NUMBER_MAP = {
+    'zero': '0', 'one': '1', 'two': '2', 'three': '3', 'four': '4',
+    'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9'
+}
+WRITTEN_NUMBER_PATTERN = re.compile(
+    r'\b(?:zero|one|two|three|four|five|six|seven|eight|nine)(?:\s+(?:zero|one|two|three|four|five|six|seven|eight|nine)){2,}\b',
+    re.IGNORECASE
+)
+
+# Case ID Pattern
+CASE_ID_PATTERN = re.compile(
+    r'\b(?:case|ref(?:erence)?|ticket|complaint|incident|claim|request)'
+    r'(?:\s+(?:no\.?|number|id|reference))?'
+    r'\s*(?:is\s+|:\s*|-\s*|\s)?'
+    r'([A-Z0-9][A-Z0-9\-]{2,18}(?:\d[A-Z0-9\-]*|[A-Z0-9\-]*\d[A-Z0-9\-]*))',
+    re.IGNORECASE
+)
+
+# Policy Number Pattern
+POLICY_NUMBER_PATTERN = re.compile(
+    r'\b(?:policy|pol)\s*(?:no\.?|number|#|:)?\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-]{3,19})\b',
+    re.IGNORECASE
+)
+
+# Order Number Pattern
+ORDER_NUMBER_PATTERN = re.compile(
+    r'\b(?:order|ord|transaction|txn|booking|invoice)\s*(?:id|no\.?|number|#|:)?\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-]{2,18}(?:\d[A-Z0-9\-]*|[A-Z0-9\-]*\d[A-Z0-9\-]*))\b',
+    re.IGNORECASE
+)
 
 # Suspicious Keywords
 SCAM_KEYWORDS = [
-    # Urgency
     "urgent", "immediately", "now", "today", "within 24 hours", "expires",
     "limited time", "hurry", "quick", "fast",
-    
-    # Threats
     "blocked", "suspended", "deactivated", "frozen", "locked", "banned",
     "arrest", "legal action", "court", "police", "penalty", "fine",
-    
-    # Verification/Authentication
     "verify", "confirm", "authenticate", "validate", "update", "secure",
     "otp", "password", "pin", "cvv", "card details",
-    
-    # Financial
     "account", "bank", "upi", "payment", "transfer", "refund", "prize",
     "lottery", "winner", "cashback", "reward", "bonus",
-    
-    # Authority Impersonation
     "rbi", "government", "tax department", "income tax", "gst",
     "custom duty", "fedex", "courier", "delivery",
-    
-    # Call to Action
     "click here", "call now", "reply immediately", "share", "provide",
     "send", "forward", "download", "install",
 ]
 
-# Payment App Names
 PAYMENT_APPS = [
     "paytm", "phonepe", "googlepay", "gpay", "bhim", "amazon pay",
     "whatsapp pay", "mobikwik", "freecharge", "airtel money"
 ]
 
 
-def extract_upi_ids(text: str) -> list[str]:
-    """
-    Extract UPI IDs from text.
-    AGGRESSIVE: Accept ALL @word patterns (including prizewinner@paytm, etc.)
-    """
-    matches = UPI_PATTERN.findall(text.lower())
-    # CHANGED: Don't filter out anything that looks like UPI
-    # Accept prizewinner@paytm, techsupport99@paytm, etc.
-    upi_candidates = []
-    for m in matches:
-        # Only filter out obvious email domains
-        if any(domain in m for domain in ['.com', '.org', '.in', '.net', '.co']):
-            continue  # This is an email, not UPI
-        upi_candidates.append(m)
-    return upi_candidates
+def extract_upi_ids(text: str) -> list:
+    text_lower = text.lower()
+    upi_ids = []
+    for match in UPI_PATTERN.finditer(text_lower):
+        m = match.group(1)
+        end_pos = match.end()
+        next_char = text_lower[end_pos] if end_pos < len(text_lower) else ''
+        if next_char == '-':
+            continue
+        if next_char == '.':
+            char_after_dot = text_lower[end_pos + 1] if end_pos + 1 < len(text_lower) else ''
+            if char_after_dot.isalpha():
+                continue
+        at_pos = m.rfind('@')
+        domain_part = m[at_pos+1:] if at_pos >= 0 else ''
+        if '.' not in domain_part:
+            upi_ids.append(m)
+    return list(set(upi_ids))
 
 
-def extract_emails(text: str) -> list[str]:
-    """Extract email addresses from text."""
-    return EMAIL_PATTERN.findall(text)
-
-
-def extract_bank_accounts(text: str) -> list[str]:
-    """
-    Extract bank account numbers from text.
-    AGGRESSIVE: Accept any 9+ digit sequence
-    """
+def extract_bank_accounts(text: str) -> list:
     matches = BANK_ACCOUNT_PATTERN.findall(text)
-    # Don't filter out anything - let intelligence system decide
-    return matches
+    filtered = []
+    for m in matches:
+        clean = re.sub(r'[-\s]', '', m)
+        if len(clean) >= 11:
+            filtered.append(m)
+        elif len(clean) == 10 and not clean[0] in '6789':
+            filtered.append(m)
+    return filtered
 
 
-def extract_phone_numbers(text: str) -> list[str]:
-    """
-    Extract phone numbers from text with AGGRESSIVE detection.
-    Accept any format: 9876543210, +91 9876543210, 987-654-3210, etc.
-    """
-    matches = PHONE_PATTERN.findall(text)
-    # Clean up and deduplicate
-    cleaned = []
-    seen = set()
-    
+def convert_written_numbers(text: str) -> str:
+    matches = WRITTEN_NUMBER_PATTERN.findall(text)
     for match in matches:
-        # Remove spaces, dashes, and +91 prefix
-        cleaned_num = re.sub(r'[-\s+]', '', match)
-        cleaned_num = cleaned_num.replace('91', '', 1) if cleaned_num.startswith('91') else cleaned_num
-        
-        if len(cleaned_num) == 10 and cleaned_num[0] in '6789' and cleaned_num not in seen:
-            cleaned.append(cleaned_num)
-            seen.add(cleaned_num)
-    
-    return cleaned
+        words = match.lower().split()
+        digits = ''.join([WRITTEN_NUMBER_MAP.get(word, '') for word in words])
+        text = text.replace(match, digits)
+    return text
 
 
-def extract_urls(text: str) -> list[str]:
-    """Extract URLs from text."""
-    return URL_PATTERN.findall(text)
+def extract_phone_numbers(text: str) -> list:
+    text_converted = convert_written_numbers(text)
+    matches = PHONE_PATTERN.findall(text_converted)
+    cleaned = []
+    for match in matches:
+        clean = re.sub(r'[\s.\-]', '', match)
+        if len(clean) == 10 and clean[0] in '6789':
+            cleaned.append('+91-' + clean)
+    return list(set(cleaned))
 
 
-def categorize_link(url: str) -> str:
-    """Categorize a link as likely phishing or normal."""
-    url_lower = url.lower()
-    if any(keyword in url_lower for keyword in PHISHING_KEYWORDS):
-        return "phishing_suspected"
-    return "normal"
+def extract_urls(text: str) -> list:
+    urls = []
+    urls.extend(URL_PATTERN.findall(text))
+    obfuscated = OBFUSCATED_URL_PATTERN.findall(text)
+    for url in obfuscated:
+        normalized = url.replace(' dot ', '.').replace('dot ', '.').replace(' dot', '.')
+        normalized = normalized.replace('[.]', '.').replace('(.)', '.')
+        normalized = normalized.replace('hxxp', 'http').replace('h**p', 'http')
+        if normalized not in urls:
+            urls.append(normalized)
+    cleaned = []
+    for url in urls:
+        url = url.rstrip('.,;:"\')')
+        if url:
+            cleaned.append(url)
+    return list(set(cleaned))
 
 
-def extract_keywords(text: str) -> list[str]:
-    """Extract suspicious keywords from text."""
+def extract_employee_ids(text: str) -> list:
+    return EMPLOYEE_ID_PATTERN.findall(text)
+
+
+def extract_names(text: str) -> list:
+    matches = NAME_PATTERN.findall(text)
+    names = []
+    for match in matches:
+        if isinstance(match, tuple):
+            names.extend([m for m in match if m])
+        else:
+            names.append(match)
+    return list(set(names))
+
+
+def extract_addresses(text: str) -> list:
+    addresses = []
+    addresses.extend(ADDRESS_PATTERN.findall(text))
+    hindi_matches = HINDI_ADDRESS_PATTERN.findall(text)
+    addresses.extend(hindi_matches)
+    cleaned = [addr.strip() for addr in addresses if len(addr.strip()) > 10]
+    return list(set(cleaned))
+
+
+def extract_emails(text: str) -> list:
+    emails = []
+    matches = EMAIL_PATTERN.findall(text)
+    for m in matches:
+        at_pos = m.rfind('@')
+        domain_part = m[at_pos+1:] if at_pos >= 0 else ''
+        if '.' in domain_part:
+            emails.append(m.lower())
+    return list(set(emails))
+
+
+def extract_pincodes(text: str) -> list:
+    matches = PINCODE_PATTERN.findall(text)
+    valid_pincodes = []
+    for code in matches:
+        if len(set(code)) == 1:
+            continue
+        if all(int(code[i]) == int(code[i-1]) + 1 for i in range(1, len(code))):
+            continue
+        if all(int(code[i]) == int(code[i-1]) - 1 for i in range(1, len(code))):
+            continue
+        valid_pincodes.append(code)
+    return list(set(valid_pincodes))
+
+
+def extract_case_ids(text: str) -> list:
+    matches = CASE_ID_PATTERN.findall(text)
+    return list(set(m for m in matches if not m.isdigit() or len(m) < 8))
+
+
+def extract_policy_numbers(text: str) -> list:
+    matches = POLICY_NUMBER_PATTERN.findall(text)
+    return list(set(m for m in matches if any(c.isdigit() for c in m)))
+
+
+def extract_order_numbers(text: str) -> list:
+    matches = ORDER_NUMBER_PATTERN.findall(text)
+    return list(set(matches))
+
+
+def extract_keywords(text: str) -> list:
     text_lower = text.lower()
     found_keywords = []
-    
     for keyword in SCAM_KEYWORDS:
         if keyword in text_lower:
             found_keywords.append(keyword)
-    
-    # Also check for payment apps
     for app in PAYMENT_APPS:
         if app in text_lower:
             found_keywords.append(app)
-    
-    return list(set(found_keywords))  # Remove duplicates
+    return list(set(found_keywords))

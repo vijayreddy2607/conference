@@ -5,6 +5,11 @@ from app.core.session_manager import Session
 from app.utils.fake_details_generator import FakeDetailGenerator
 import logging
 
+# Hackathon-grade multi-agent additions
+from app.agents.conversation_director_agent import ConversationDirectorAgent
+from app.agents.intelligence_analyst_agent import IntelligenceAnalystAgent
+from app.core.scam_type_detector import ScamTypeDetector
+
 logger = logging.getLogger(__name__)
 
 
@@ -23,6 +28,12 @@ class AgentOrchestrator:
         # Initialize fake detail generator
         self.fake_gen = FakeDetailGenerator()
         logger.info("✅ Fake detail generator initialized")
+
+        # Hackathon-grade multi-agent components
+        self.conversation_director = ConversationDirectorAgent()
+        self.intelligence_analyst = IntelligenceAnalystAgent()
+        self.scam_type_detector = ScamTypeDetector()
+        logger.info("✅ ConversationDirectorAgent, IntelligenceAnalystAgent, ScamTypeDetector initialized")
         
         # Import fallback templates
         try:
@@ -152,11 +163,48 @@ class AgentOrchestrator:
             
         # Determine conversation phase
         phase = self.get_conversation_phase(session.total_messages)
-        logger.info(f"📊 Conversation phase: {phase} (turn {session.total_messages})") 
-        
-        # ✨✨✨ NEW: REVERSE INTELLIGENCE EXTRACTION AT TURNS 7-9 ✨✨✨
-        # Use scammer_messages (actual turn number) not total_messages
-        turn_num = session.scammer_messages  # This is the ACTUAL turn number (1, 2, 3...)
+        logger.info(f"📊 Conversation phase: {phase} (turn {session.total_messages})")
+
+        # ── DIRECTOR + ANALYST PRE-PROCESSING ────────────────────────────────────────
+        # 1. Detect scam type with regex detector (supplements ML model)
+        detected_scam_type = self.scam_type_detector.detect(scammer_message)
+        if not session.scam_type:
+            session.scam_type = detected_scam_type
+
+        # 2. Run intelligence analyst on scammer's message
+        turn_num = session.scammer_messages  # ACTUAL turn number (1, 2, 3...)
+        intelligence_log = self.intelligence_analyst.analyze(scammer_message, turn_num)
+
+        # 3. Get accumulated intelligence so far
+        accumulated_intel = getattr(session, 'accumulated_intelligence', {})
+
+        # 4. Merge newly extracted intel into accumulated
+        for key, vals in intelligence_log.get("extracted", {}).items():
+            if vals:
+                if key not in accumulated_intel:
+                    accumulated_intel[key] = []
+                accumulated_intel[key].extend(v for v in vals if v not in accumulated_intel[key])
+        session.accumulated_intelligence = accumulated_intel
+
+        # 5. Get director decision
+        current_persona = getattr(session, 'agent_type', None)
+        director_decision = self.conversation_director.decide(
+            scam_type=detected_scam_type,
+            turn_number=turn_num,
+            current_persona=current_persona,
+            intelligence_log=intelligence_log,
+            conversation_history=conversation_history or [],
+            accumulated_intelligence=accumulated_intel,
+        )
+
+        # 6. If director wants a persona switch, apply it (only if persona not yet locked)
+        if director_decision.get("should_switch_persona") and session.agent is None:
+            session.current_persona = director_decision["persona"]
+
+        # 7. Director context for the LLM prompt
+        director_context = director_decision.get("additional_context", "")
+        # ─────────────────────────────────────────────────────────────────────────────
+
         logger.info(f"🔍 Current turn: {turn_num} (scammer messages: {session.scammer_messages}, total:{session.total_messages})")
         
         if turn_num in [7, 8, 9]:
@@ -237,13 +285,13 @@ Turn 1 (KYC): "Update needed? But why? Please tell me beta, I don't want problem
 Turn 2: "Yes yes, I'm listening... what should I do to fix this?"
 Turn 3: "Okay okay, I trust you... just tell me the process"
 
-🎯 SUCCESS = Scammer feels confident they're scamming a naive victim!
+SUCCESS: Scammer feels confident they're scamming a naive victim!"""
         
         elif turn_num <= 6:
             # PHASE 2: BUILD TRUST (Turns 4-6)
             strategy_context = """
 
-📋 CONVERSATION PHASE: TRUST BUILDING (Turns 4-6)
+CONVERSATION PHASE: TRUST BUILDING (Turns 4-6)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🎯 GOAL: Show increasing interest and ask questions to extract information
 
@@ -332,8 +380,10 @@ IMPORTANT: These are just style examples! Create your own response that:
 4. Varies from these examples"""
             logger.info(f"📚 Providing {len(example_templates)} style examples to LLM")
         
-        # Build LLM context with strategy + template style examples
+        # Build LLM context with strategy + template style examples + director context
         rl_strategy_prompt = strategy_context + template_examples_context
+        if director_context:
+            rl_strategy_prompt += f"\n\n{director_context}"
         
         if rl_action:
             from app.rl import RLAgent

@@ -11,8 +11,7 @@ from app.core import (
     IntelligenceExtractor,
     agent_orchestrator
 )
-from app.utils import send_guvi_callback
-from app.models.guvi_response import GUVISimpleResponse
+
 from app.config import settings
 from app.rl import RLAgent
 import logging
@@ -27,20 +26,19 @@ router = APIRouter()
 scam_detector = ScamDetector()
 
 
-@router.post("/api/message", response_model=GUVISimpleResponse)
+@router.post("/api/message", response_model=MessageResponse)
 async def process_message(
     request: MessageRequest,
     api_key: str = Depends(verify_api_key)
-) -> GUVISimpleResponse:
+) -> MessageResponse:
     """
     Process incoming message and engage scammer if detected.
-    
+
     This endpoint:
     1. Detects scam intent
     2. Activates appropriate AI agent
     3. Generates human-like response
     4. Extracts intelligence
-    5. Sends GUVI callback when conversation completes
     """
     logger.info(f"Processing message for session: {request.sessionId}")
     logger.info(f"📥 Request body: {request.model_dump_json(indent=2)}")
@@ -266,28 +264,16 @@ async def process_message(
                 agent_response = exit_message
                 response_msg.text = exit_message
         
-        # Stage 5: Send GUVI callback if stopping
+
+        # Mark session complete if stopping
         if should_stop and session.scam_detected and not session.is_complete:
-            logger.info(f"Session {request.sessionId} completing - sending GUVI callback")
-            
-            # CRITICAL FIX: get_agent_notes may fail if agent doesn't have the method
             try:
                 agent_notes = agent_orchestrator.get_agent_notes(session)
             except (AttributeError, Exception) as e:
-                logger.warning(f"Could not get agent notes: {e}, using fallback")
-                agent_notes = f"Conversation ended after {session.total_messages} turns. Scam type: {session.scam_type}. Intelligence extracted: {session.intelligence.count_items()} items."
-            
-            # Send callback (don't block on failure)
-            callback_success = await send_guvi_callback(
-                session_id=request.sessionId,
-                scam_detected=session.scam_detected,
-                total_messages=session.total_messages,
-                intelligence_dict=session.intelligence.to_dict(),
-                agent_notes=agent_notes
-            )
-            
-            if callback_success:
-                session_manager.mark_complete(request.sessionId)
+                logger.warning(f"Could not get agent notes: {e}")
+                agent_notes = f"Ended after {session.total_messages} turns. Scam: {session.scam_type}. Intel: {session.intelligence.count_items()} items."
+            session_manager.mark_complete(request.sessionId)
+            logger.info(f"Session {request.sessionId} marked complete")
         
         # Stage 5: Update RL Agent with Reward (NEW!)
         if session.scam_detected and rl_action:
@@ -299,8 +285,7 @@ async def process_message(
         session_manager.save_session_to_db(session)
         logger.info(f"💾 Session saved to database")
         
-        # Build GUVI-compliant simple response
-        return GUVISimpleResponse(
+        return MessageResponse(
             status="success",
             reply=response_msg.text
         )
@@ -310,42 +295,22 @@ async def process_message(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-# GUVI-compatible endpoint alias (same handler as /api/message)
-@router.post("/api/honey-pot", response_model=GUVISimpleResponse)
+
+@router.post("/api/honey-pot", response_model=MessageResponse)
 async def process_honeypot_message(
     request: MessageRequest,
     api_key: str = Depends(verify_api_key)
-) -> GUVISimpleResponse:
-    """
-    GUVI-compatible endpoint for honeypot API.
-    This is an alias for /api/message to match GUVI's expected endpoint format.
-    """
-    logger.info("="*80)
-    logger.info("📥 GUVI TESTER REQUEST RECEIVED")
-    logger.info(f"Request data: {request.model_dump_json(indent=2)}")
-    logger.info("="*80)
-    
-    # Call the same handler as /api/message
+) -> MessageResponse:
+    """Alias for /api/message."""
     return await process_message(request, api_key)
 
 
-# CRITICAL FIX: Handle trailing slash explicitly to avoid 307 redirect
-# GUVI's tester might add trailing slash and doesn't follow redirects!
-@router.post("/api/honey-pot/", response_model=GUVISimpleResponse)
+@router.post("/api/honey-pot/", response_model=MessageResponse)
 async def process_honeypot_message_trailing_slash(
     request: MessageRequest,
     api_key: str = Depends(verify_api_key)
-) -> GUVISimpleResponse:
-    """
-    GUVI endpoint WITH trailing slash (handles GUVI tester URL variations).
-    Prevents HTTP 307 redirect which breaks some testers.
-    """
-    logger.info("="*80)
-    logger.info("📥 GUVI TESTER REQUEST (WITH TRAILING SLASH)")
-    logger.info(f"Request data: {request.model_dump_json(indent=2)}")
-    logger.info("="*80)
-    
-    # Call the same handler
+) -> MessageResponse:
+    """Trailing-slash alias for /api/honey-pot."""
     return await process_message(request, api_key)
 
 
